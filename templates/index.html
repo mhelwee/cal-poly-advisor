@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cal Poly AI Advisor</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --green: #154734;
+            --gold: #BD8B13;
+            --light: #f5f0e8;
+            --white: #ffffff;
+            --gray: #8a8a8a;
+            --bubble-user: #154734;
+            --bubble-advisor: #ffffff;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background-color: var(--light);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 720px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--white);
+            border-radius: 16px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--green);
+            padding: 20px 28px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-logo {
+            width: 38px;
+            height: 38px;
+            background: var(--gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'DM Mono', monospace;
+            font-size: 16px;
+            color: var(--white);
+            font-weight: 500;
+        }
+
+        .header-text h1 {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--white);
+            letter-spacing: -0.2px;
+        }
+
+        .header-text p {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 1px;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 82%;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user { align-self: flex-end; align-items: flex-end; }
+        .message.advisor { align-self: flex-start; align-items: flex-start; }
+
+        .bubble {
+            padding: 12px 16px;
+            border-radius: 14px;
+            font-size: 14.5px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .message.user .bubble {
+            background: var(--green);
+            color: var(--white);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.advisor .bubble {
+            background: var(--light);
+            color: #1a1a1a;
+            border-bottom-left-radius: 4px;
+        }
+
+        .label {
+            font-size: 11px;
+            color: var(--gray);
+            margin-bottom: 4px;
+            font-family: 'DM Mono', monospace;
+        }
+
+        .typing {
+            display: flex;
+            gap: 4px;
+            padding: 14px 18px;
+            background: var(--light);
+            border-radius: 14px;
+            border-bottom-left-radius: 4px;
+            width: fit-content;
+        }
+
+        .typing span {
+            width: 7px;
+            height: 7px;
+            background: var(--gray);
+            border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-6px); }
+        }
+
+        .input-area {
+            padding: 16px 28px 20px;
+            border-top: 1px solid #eeece8;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        textarea {
+            flex: 1;
+            border: 1.5px solid #e0ddd6;
+            border-radius: 10px;
+            padding: 11px 14px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            max-height: 120px;
+            line-height: 1.5;
+            background: var(--white);
+            color: #1a1a1a;
+            transition: border-color 0.15s;
+        }
+
+        textarea:focus { border-color: var(--green); }
+
+        button {
+            background: var(--green);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 11px 20px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+            white-space: nowrap;
+        }
+
+        button:hover { background: #0f3326; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        .messages::-webkit-scrollbar { width: 4px; }
+        .messages::-webkit-scrollbar-track { background: transparent; }
+        .messages::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="header-logo">CP</div>
+        <div class="header-text">
+            <h1>Cal Poly AI Advisor</h1>
+            <p>Powered by Claude · PolyRatings data</p>
+        </div>
+    </div>
+
+    <div class="messages" id="messages">
+        <div class="message advisor">
+            <div class="label">Advisor</div>
+            <div class="bubble">Hi! I'm your Cal Poly SLO academic advisor. I can help you plan your courses, check prerequisites, and find the best professors using live PolyRatings data.
+
+To get started, tell me your major and what courses you've completed so far.</div>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <textarea id="input" placeholder="Type your message..." rows="1"></textarea>
+        <button id="send" onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<script>
+    const input = document.getElementById("input");
+    const messages = document.getElementById("messages");
+    const sendBtn = document.getElementById("send");
+
+    input.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    input.addEventListener("input", function() {
+        this.style.height = "auto";
+        this.style.height = Math.min(this.scrollHeight, 120) + "px";
+    });
+
+    function addMessage(role, text) {
+        const div = document.createElement("div");
+        div.className = `message ${role}`;
+        div.innerHTML = `
+            <div class="label">${role === "user" ? "You" : "Advisor"}</div>
+            <div class="bubble">${text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</div>   
+        `;
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function showTyping() {
+        const div = document.createElement("div");
+        div.className = "message advisor";
+        div.id = "typing";
+        div.innerHTML = `
+            <div class="label">Advisor</div>
+            <div class="typing"><span></span><span></span><span></span></div>
+        `;
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function removeTyping() {
+        const t = document.getElementById("typing");
+        if (t) t.remove();
+    }
+
+    async function sendMessage() {
+        const text = input.value.trim();
+        if (!text) return;
+
+        input.value = "";
+        input.style.height = "auto";
+        sendBtn.disabled = true;
+
+        addMessage("user", text);
+        showTyping();
+
+        try {
+            const res = await fetch("/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: text })
+            });
+            const data = await res.json();
+            removeTyping();
+            addMessage("advisor", data.response);
+        } catch (err) {
+            removeTyping();
+            addMessage("advisor", "Something went wrong. Please try again.");
+        }
+
+        sendBtn.disabled = false;
+        input.focus();
+    }
+</script>
+</body>
+</html>
