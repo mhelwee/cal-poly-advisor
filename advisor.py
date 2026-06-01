@@ -3,7 +3,7 @@ import json
 import requests
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from requirements import CS_REQUIREMENTS, PREREQUISITE_CHAIN
+from requirements import CS_REQUIREMENTS, PREREQUISITE_CHAIN, COURSE_NAMES
 
 load_dotenv()
 
@@ -34,6 +34,7 @@ You help students plan their courses, check prerequisites, and choose professors
 Official CS degree requirements: {json.dumps(CS_REQUIREMENTS)}
 Prerequisite chains: {json.dumps(PREREQUISITE_CHAIN)}
 CSC/CPE Professor data from PolyRatings: {json.dumps(professors)}
+Course names: {json.dumps(COURSE_NAMES)}
 
 Old course numbers map to new ones: CSC 101=CSC 1001, CSC 102=CSC 1001, 
 CSC 202=CSC 2001, CSC 203=CSC 3001, CSC 225=CPE 2300, CSC 248=CSC 2050, 
