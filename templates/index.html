@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cal Poly AI Advisor</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -117,6 +118,78 @@
             background: var(--light);
             color: #1a1a1a;
             border-bottom-left-radius: 4px;
+            white-space: normal;
+        }
+
+        /* Markdown content inside advisor bubbles */
+        .message.advisor .bubble p { margin: 4px 0; }
+        .message.advisor .bubble p:first-child { margin-top: 0; }
+        .message.advisor .bubble p:last-child { margin-bottom: 0; }
+
+        .message.advisor .bubble h1,
+        .message.advisor .bubble h2,
+        .message.advisor .bubble h3 {
+            margin: 10px 0 4px;
+            font-weight: 600;
+            color: var(--green);
+        }
+        .message.advisor .bubble h1 { font-size: 1.05em; }
+        .message.advisor .bubble h2 { font-size: 1em; }
+        .message.advisor .bubble h3 { font-size: 0.95em; }
+
+        .message.advisor .bubble ul,
+        .message.advisor .bubble ol {
+            padding-left: 20px;
+            margin: 4px 0;
+        }
+        .message.advisor .bubble li { margin: 2px 0; }
+
+        .message.advisor .bubble hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 8px 0;
+        }
+
+        .message.advisor .bubble code {
+            background: rgba(0,0,0,0.07);
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.88em;
+        }
+        .message.advisor .bubble pre {
+            background: rgba(0,0,0,0.06);
+            padding: 8px 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 6px 0;
+        }
+        .message.advisor .bubble pre code {
+            background: none;
+            padding: 0;
+        }
+
+        /* Tables — Cal Poly green headers */
+        .message.advisor .bubble table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 8px 0;
+            font-size: 13.5px;
+        }
+        .message.advisor .bubble th {
+            background: var(--green);
+            color: #fff;
+            padding: 7px 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        .message.advisor .bubble td {
+            padding: 6px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        .message.advisor .bubble tr:last-child td { border-bottom: none; }
+        .message.advisor .bubble tr:nth-child(even) td {
+            background: rgba(21,71,52,0.04);
         }
 
         .label {
@@ -242,12 +315,20 @@ To get started, tell me your major and what courses you've completed so far.</di
         this.style.height = Math.min(this.scrollHeight, 120) + "px";
     });
 
+    function escapeHtml(text) {
+        return text.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     function addMessage(role, text) {
         const div = document.createElement("div");
         div.className = `message ${role}`;
+        const content = role === "advisor"
+            ? marked.parse(text)
+            : escapeHtml(text).replace(/\n/g, '<br>');
         div.innerHTML = `
             <div class="label">${role === "user" ? "You" : "Advisor"}</div>
-            <div class="bubble">${text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>')}</div>   
+            <div class="bubble">${content}</div>
         `;
         messages.appendChild(div);
         messages.scrollTop = messages.scrollHeight;

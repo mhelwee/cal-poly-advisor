@@ -8,12 +8,14 @@ An AI-powered academic advising chatbot for Cal Poly SLO students. Built with Py
 - Maps old quarter-system course numbers to new semester numbers automatically
 - Checks your progress against official CS degree requirements
 - Recommends courses for next quarter based on prerequisites
+- Uses RAG to retrieve only the relevant requirement, prerequisite, GE, course mapping, and professor context for each question
 - Pulls live professor ratings from PolyRatings and recommends professors based on your preferences
 - Holds context across a full conversation - ask follow-up questions naturally
 
 ## Skills demonstrated
 
 - **Prompt engineering** - structured system prompts that control AI behavior
+- **Retrieval-augmented generation** - compact per-query context instead of stuffing every record into the prompt
 - **Structured outputs** - Claude returns JSON that the program can use
 - **Agent design** - multi-turn conversation with persistent context
 - **External API integration** - live data from PolyRatings
@@ -31,6 +33,7 @@ An AI-powered academic advising chatbot for Cal Poly SLO students. Built with Py
 
 - `advisor.py` - terminal chatbot version
 - `app.py` - Flask web app version
+- `rag.py` - shared retrieval layer for course, requirement, GE, mapping, and professor context
 - `requirements.py` - Cal Poly CS degree requirements and course names
 - `templates/index.html` - chat UI
 
