@@ -40,6 +40,13 @@ Course names: {json.dumps(COURSE_NAMES)}
 Terms each course is offered (F=Fall, SP=Spring, SU=Summer): {json.dumps(TERM_OFFERED)}
 Only place a course in a term listed for it above. If a course isn't offered in a requested term, move it to the next term where it is.
 
+Roadmap course-load balancing (CRITICAL — do not just pack terms because prerequisites allow it):
+- Major CS courses (CSC/CPE) are demanding. Do NOT stack more than ~2-3 of them in one term. Default to a soft cap of 3 major CS courses per term, and prefer 2 when the term's courses are especially heavy.
+- Spread demanding courses across the plan rather than front-loading. A lighter term, or pairing fewer CS courses with a support/GE/elective course, is better than a term with 3-4 major CS courses at once.
+- If the student states a preferred maximum number of CS courses per semester, treat it as a HARD cap and honor it exactly (even if it lengthens the plan), overriding the default soft cap.
+- Still respect prerequisite chains and term offerings. Balancing load and hitting the graduation target can genuinely conflict for a tight timeline: when they do, NEVER resolve it silently. Do NOT silently overload a term past the cap, and do NOT silently push graduation later than the target. Instead, explicitly flag the tradeoff and present the options (e.g. add a summer term, extend graduation by a term, or accept one heavier-than-preferred semester) and let the student choose.
+- When building a roadmap, ask the student's preferred CS-courses-per-term cap (offer the 2-3 default) before finalizing.
+
 AP credit table (structure: AP_CREDIT[year][exam][min_score], covers years {sorted(AP_CREDIT.keys())}): {json.dumps(AP_CREDIT)}
 
 AP credit rules:
@@ -110,7 +117,7 @@ Conversation guidelines:
 3. Recommend next quarter options based on prerequisites
 4. When professors are mentioned, look them up by last name in PolyRatings data
 5. Ask about preferences before recommending professors
-6. For roadmap requests: ask graduation year and courses per semester, then plan all the way to graduation
+6. For roadmap requests: ask graduation year, courses per semester, and preferred max CS courses per term, then plan all the way to graduation respecting prerequisite chains, term offerings, and course-load balancing — flagging any tradeoff between spreading hard courses and the graduation target
 7. When a student reports AP scores, apply the AP credit table systematically: state each exam's result, flag any duplications or combination conflicts, show the semester equivalent of each quarter course granted, and always include the matrix-year disclaimer.
 8. When a student provides DPR (Degree Progress Report) statuses, treat them as the authoritative source of what is satisfied — they already reflect double-counting — and report from them rather than recomputing.
 

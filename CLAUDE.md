@@ -60,6 +60,20 @@ Stack: **Python + Flask + Anthropic API** (model `claude-sonnet-4-6`).
   `python` is also more reliable via PowerShell than the Bash tool here. For pushes, prepend
   `C:\Program Files\Git\mingw64\libexec\git-core` to PATH so git finds the credential manager.
 
+## Gotchas / environment
+
+- **Intermittent Git Bash fork bug.** This machine intermittently fails to fork msys
+  processes (`fatal error: add_item ... fork`), which blocks any git operation that spawns a
+  helper through `sh`/`bash`: notably `push` (credential helper) and `rebase --continue` (the
+  editor spawn). It is intermittent, so the same command may succeed on a later try.
+- **Reliable push workaround when it flares:** `git -c credential.helper=wincred push`. The
+  native `wincred` binary reads the credential from Windows Credential Manager directly
+  instead of spawning the GCM (`manager-core`) helper through `sh`.
+- **If a rebase hangs on the editor spawn:** it can leave hung `git` processes. Kill them
+  (`Get-Process git,sh,bash | Stop-Process -Force`) and clear any stale `.git/index.lock`
+  before retrying `git rebase --continue`. Using a no-op editor (`GIT_EDITOR=true`) lets the
+  continue reuse the existing commit message.
+
 ## Limitations (by design)
 
 No full 120-unit total computation; general CS curriculum only; AP/GE accuracy depends on
