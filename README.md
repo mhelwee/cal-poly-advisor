@@ -28,8 +28,10 @@ web app and a terminal app sharing one retrieval and advising core.
   graduation, respecting prerequisites, term availability, and a target graduation date.
   The generated plan is then **validated in code** — prerequisite order, term offerings, a
   per-term CS-course cap when the student states one, no past terms, and no duplicate
-  courses — and regenerated if it fails any check, so the plan the student sees has been
-  verified rather than taken on the model's word.
+  courses — and regenerated if it fails any check. The plan the student sees has been
+  verified in code, not taken on the model's word; in the rare case the model can't produce
+  a clean plan within the retry budget, it's surfaced with an explicit "couldn't fully
+  verify" disclaimer rather than presented as confirmed.
 - **Professor recommendations.** Pulls live **PolyRatings** data and recommends instructors
   matched by the courses they actually teach — not by home department, so cross-listed
   instructors still surface — then ranked against the student's stated preferences (e.g.
@@ -72,7 +74,11 @@ miniature: the model extracts the constraint from natural language ("max 2 CS co
 term"), and code enforces it deterministically — catching the model if it contradicts its
 own stated understanding. Courses outside the bounded requirement data are skipped rather
 than false-flagged, and the checks are covered by unit tests in
-[test_roadmap_validator.py](test_roadmap_validator.py).
+[test_roadmap_validator.py](test_roadmap_validator.py). Retries are capped, so on the rare
+exhaustion case the plan is surfaced with an explicit "couldn't fully verify" disclaimer
+instead of being presented as confirmed. **Both** the web and terminal interfaces run this
+loop through a shared core ([advisor_core.py](advisor_core.py)), which also holds the single
+canonical copy of the advising prompt so the two can't drift.
 
 **Conversation:** Both entry points keep multi-turn context (the Flask app per session,
 the terminal app per process), so follow-up questions work naturally.
@@ -132,6 +138,8 @@ Example exchange:
 
 - [app.py](app.py): Flask web app (session-based conversation)
 - [advisor.py](advisor.py): terminal chatbot
+- [advisor_core.py](advisor_core.py): shared advising core (canonical system prompt and the
+  roadmap generate → validate → regenerate loop) imported by both interfaces
 - [rag.py](rag.py): retrieval layer (PolyRatings fetch, document building, relevance scoring)
 - [requirements.py](requirements.py): advising knowledge base (degree requirements,
   prerequisites, quarter→semester mappings, AP credit matrices, GE crosswalk, term offerings)
