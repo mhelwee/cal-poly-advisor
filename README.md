@@ -79,6 +79,24 @@ the terminal app per process), so follow-up questions work naturally.
 4. **Web app:** `python app.py`, then open `http://localhost:5000`.
 5. **Terminal app:** `python advisor.py`.
 
+## How to use
+
+Talk to the advisor in plain language. Describe your completed courses, your AP scores
+(include each exam's year so the correct matrix applies), and any GE areas your DPR already
+confirms; then ask for a multi-semester roadmap or next-term recommendations. For professor
+recommendations, tell it which professors are offered for the course and what matters to you
+(workload, grading, recorded lectures); it ranks the real PolyRatings options against your
+preferences rather than guessing who is teaching.
+
+Example exchange:
+
+> **You:** I've finished CSC 2001 and CSC 2050, got a 4 on AP Calc AB (2024), and my DPR shows
+> GE 1A and 1B done. Plan a roadmap to graduate Spring 2028, max 2 CS courses per term.
+>
+> **Advisor:** Got it. AP Calc AB (2024) credits MATH 141 toward the calculus sequence, and
+> 1A/1B are set per your DPR. Here's a balanced term-by-term plan that stays at 2 CS courses
+> per semester, respects prerequisites and term offerings, and still reaches Spring 2028...
+
 ## Project structure
 
 - [app.py](app.py): Flask web app (session-based conversation)
