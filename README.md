@@ -1,5 +1,7 @@
 # Cal Poly AI Academic Advisor
 
+**Live demo:** <URL>  (replace after deploy)
+
 An AI academic advisor for Cal Poly SLO Computer Science students. It plans courses,
 applies transfer and AP credit, tracks General Education progress, and recommends
 professors from live ratings data - all through a natural, multi-turn conversation.
@@ -22,12 +24,16 @@ web app and a terminal app sharing one retrieval and advising core.
   Progress Report (DPR) statuses as authoritative when provided.
 - **Prerequisites and term offerings.** Checks prerequisite chains and only schedules a
   course in a term it is actually offered.
-- **Roadmap planning.** Builds a multi-semester plan toward graduation, respecting
-  prerequisites, term availability, and a target graduation date, never scheduling a term
-  in the past.
+- **Roadmap planning with code-verified output.** Builds a multi-semester plan toward
+  graduation, respecting prerequisites, term availability, and a target graduation date.
+  The generated plan is then **validated in code** — prerequisite order, term offerings, a
+  per-term CS-course cap when the student states one, no past terms, and no duplicate
+  courses — and regenerated if it fails any check, so the plan the student sees has been
+  verified rather than taken on the model's word.
 - **Professor recommendations.** Pulls live **PolyRatings** data and recommends instructors
-  filtered by the student's stated course and preferences (e.g. recorded lectures,
-  workload, grading), with a light department-context tiebreaker for ambiguous names.
+  matched by the courses they actually teach — not by home department, so cross-listed
+  instructors still surface — then ranked against the student's stated preferences (e.g.
+  recorded lectures, workload, grading).
 
 ## Architecture
 
@@ -53,14 +59,31 @@ dataset is bounded and largely keyed by course codes and proper names, where exa
 matching is precise, transparent, and dependency-free. Embeddings would add infrastructure
 and opacity without meaningfully improving recall on this corpus.
 
+**Roadmap validation loop ([roadmap_validator.py](roadmap_validator.py)):**
+
+Correctness-critical output is **verified in code, not trusted from the model**. The model
+emits the plan as structured JSON — including the per-term CS-course cap it understood the
+student to want — and [roadmap_validator.py](roadmap_validator.py), a pure, dependency-free
+module, checks it against the *same* prerequisite and term-offering data used everywhere
+else: prerequisite ordering, term offerings, the CS cap, no terms in the past, and no
+duplicate courses. Any violations are fed back to the model to fix, and the plan is
+re-validated, with retries capped to avoid loops or runaway cost. The cap is the pattern in
+miniature: the model extracts the constraint from natural language ("max 2 CS courses a
+term"), and code enforces it deterministically — catching the model if it contradicts its
+own stated understanding. Courses outside the bounded requirement data are skipped rather
+than false-flagged, and the checks are covered by unit tests in
+[test_roadmap_validator.py](test_roadmap_validator.py).
+
 **Conversation:** Both entry points keep multi-turn context (the Flask app per session,
 the terminal app per process), so follow-up questions work naturally.
 
 ## Skills demonstrated
 
 - **Prompt engineering:** structured system prompts that encode advising rules and control behavior
-- **Structured outputs:** machine-usable structured data driving the advising logic
-- **Agent design:** multi-turn conversation with persistent context
+- **Structured outputs:** the model emits roadmaps as structured JSON that drives a code-based validation step, not just free text
+- **Output verification / guardrails:** correctness-critical LLM output is constrained to a schema and checked in code (the roadmap validator), with invalid plans regenerated rather than shown
+- **Agent design:** multi-turn conversation with persistent context, plus a generate → validate → regenerate loop for roadmaps
+- **API economics:** the large, static advising knowledge base is sent with a prompt-cache marker so it is cached across turns — a deliberate choice that cuts per-message cost and latency
 - **Retrieval-augmented generation:** per-query lexical retrieval that grounds responses
 - **REST API integration:** the Anthropic API for the conversational core
 - **External data integration:** live professor ratings from PolyRatings
@@ -70,7 +93,7 @@ the terminal app per process), so follow-up questions work naturally.
 1. Clone the repo.
 2. Install dependencies:
    ```
-   pip install anthropic python-dotenv requests flask
+   pip install -r requirements.txt
    ```
 3. Create a `.env` file in the project root with your Anthropic API key:
    ```
@@ -78,6 +101,14 @@ the terminal app per process), so follow-up questions work naturally.
    ```
 4. **Web app:** `python app.py`, then open `http://localhost:5000`.
 5. **Terminal app:** `python advisor.py`.
+
+## Deployment
+
+The web app runs under **gunicorn** via the included `Procfile` (`web: gunicorn app:app`) and
+needs `ANTHROPIC_API_KEY` and `SECRET_KEY` set in the host environment. Sessions are stored
+**server-side (filesystem)**, so long multi-turn histories aren't lost to the ~4KB browser
+cookie limit, and transient Anthropic API errors degrade gracefully — the student is asked to
+resend rather than hitting a failed page.
 
 ## How to use
 
@@ -104,7 +135,12 @@ Example exchange:
 - [rag.py](rag.py): retrieval layer (PolyRatings fetch, document building, relevance scoring)
 - [requirements.py](requirements.py): advising knowledge base (degree requirements,
   prerequisites, quarter→semester mappings, AP credit matrices, GE crosswalk, term offerings)
+- [roadmap_validator.py](roadmap_validator.py): pure roadmap validation (prerequisite order,
+  term offerings, per-term CS-course cap, past terms, duplicates) used to verify generated plans
+- [test_roadmap_validator.py](test_roadmap_validator.py): unit tests for the roadmap validator
 - [templates/index.html](templates/index.html): chat UI with Markdown rendering (tables, lists)
+- [requirements.txt](requirements.txt): Python dependencies
+- [Procfile](Procfile): process definition for gunicorn-based deployment
 
 ## Limitations
 

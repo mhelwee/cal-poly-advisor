@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Flask-Session filesystem session store (runtime, server-side)
+flask_session/
+
 # C extensions
 *.so
 

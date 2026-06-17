@@ -1,0 +1,6 @@
+anthropic
+flask
+flask-session
+python-dotenv
+requests
+gunicorn

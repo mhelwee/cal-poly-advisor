@@ -3,8 +3,10 @@ import os
 import re
 from datetime import date
 
+import anthropic
 import requests
 from flask import Flask, render_template, request, jsonify, session
+from flask_session import Session
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from requirements import (
@@ -19,16 +21,22 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
+# Server-side (filesystem) sessions: chat history can exceed the ~4KB browser cookie
+# limit, which silently drops turns. Only a session id rides in the cookie now.
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_PERMANENT"] = False
+Session(app)
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-def _next_term():
-    today = date.today()
+# Shown to the student when the model API fails; the real error is logged server-side.
+ADVISOR_UNAVAILABLE = "The advisor is briefly unavailable — please resend your message in a moment."
+
+def _next_term(today=None):
+    today = today or date.today()
     return f"Fall {today.year}" if today.month <= 8 else f"Spring {today.year + 1}"
 
 
-def build_system_prompt():
-    today = date.today()
-    next_term = _next_term()
+def build_system_prompt(today, next_term):
     return f"""You are a Cal Poly SLO academic advisor chatbot.
 You help CS students plan courses, check prerequisites, and choose professors.
 
@@ -134,7 +142,6 @@ try:
 except (requests.RequestException, json.JSONDecodeError) as exc:
     print(f"Could not load PolyRatings data: {exc}")
     all_professors = []
-system_prompt = build_system_prompt()
 
 # ---- Roadmap validation loop ----
 #
@@ -153,10 +160,11 @@ ROADMAP_INSTRUCTION = (
     "\n\n[System note] If your reply contains a concrete multi-term course plan (a "
     "roadmap), append ONE machine-readable block at the very end, in EXACTLY this "
     "form and nothing after it:\n"
-    f'{ROADMAP_OPEN}{{"terms": [{{"term": "Fall 2026", "courses": ["CSC 1001"]}}]}}{ROADMAP_CLOSE}\n'
-    "Use new semester course codes and \"<Season> <Year>\" term labels that match "
-    "the plan you described. If your reply is not a multi-term plan, do NOT include "
-    "the block."
+    f'{ROADMAP_OPEN}{{"cs_cap": <int or null>, "terms": [{{"term": "Fall 2026", "courses": ["CSC 1001"]}}]}}{ROADMAP_CLOSE}\n'
+    'Set "cs_cap" to the maximum number of major CS courses per term the student '
+    "EXPLICITLY stated they want, or null if they stated no cap. Use new semester "
+    'course codes and "<Season> <Year>" term labels that match the plan you '
+    "described. If your reply is not a multi-term plan, do NOT include the block."
 )
 
 
@@ -185,6 +193,22 @@ def _strip_roadmap_block(text):
     return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 
+def _system_param(system_prompt):
+    """Wrap the system prompt with a cache_control marker. The advising knowledge
+    base is large and static within a day, so caching it cuts per-message cost and
+    latency; it only misses once a day when the embedded date rolls over."""
+    return [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+
+
+def _roadmap_cs_cap(roadmap):
+    """The per-term CS cap the model parsed from the student, or None. Tolerates the
+    field being absent, null, or malformed (backward compatible)."""
+    cs_cap = roadmap.get("cs_cap")
+    if isinstance(cs_cap, bool) or not isinstance(cs_cap, int):
+        return None
+    return cs_cap
+
+
 def _validation_feedback(violations):
     return (
         "The structured roadmap you provided failed automated validation. Fix every "
@@ -196,12 +220,17 @@ def _validation_feedback(violations):
     )
 
 
-def _generate_validated_reply(messages, earliest_term):
+def _generate_validated_reply(messages, system_prompt, earliest_term):
     """Call the model and, if it emits a roadmap with violations, ask it to fix the
-    plan (up to MAX_ROADMAP_RETRIES). Return the final raw reply (block included)."""
+    plan (up to MAX_ROADMAP_RETRIES). Return the final raw reply (block included).
+
+    Raises anthropic.APIError subclasses on API failure; the caller handles them so
+    a failure on any attempt (initial or retry) degrades gracefully.
+    """
+    system = _system_param(system_prompt)
     response = client.messages.create(
         model="claude-sonnet-4-6", max_tokens=4096,
-        system=system_prompt, messages=messages,
+        system=system, messages=messages,
     )
     reply = response.content[0].text
     convo = list(messages)
@@ -210,7 +239,8 @@ def _generate_validated_reply(messages, earliest_term):
         roadmap = _extract_roadmap(reply)
         if roadmap is None:
             break
-        violations = validate_roadmap(roadmap, cs_cap=None, earliest_term=earliest_term)
+        cs_cap = _roadmap_cs_cap(roadmap)
+        violations = validate_roadmap(roadmap, cs_cap=cs_cap, earliest_term=earliest_term)
         if not violations:
             break
         print(f"Roadmap violations, asking model to fix: {violations}")
@@ -220,7 +250,7 @@ def _generate_validated_reply(messages, earliest_term):
         ]
         response = client.messages.create(
             model="claude-sonnet-4-6", max_tokens=4096,
-            system=system_prompt, messages=convo,
+            system=system, messages=convo,
         )
         reply = response.content[0].text
 
@@ -247,7 +277,25 @@ def chat():
 
     messages = history + [{"role": "user", "content": message_with_context}]
 
-    raw_reply = _generate_validated_reply(messages, earliest_term=_next_term())
+    # Rebuild the prompt per request so today's date stays current, and use the SAME
+    # next-term value in the prompt and the validator. Identical content still hits the
+    # prompt cache; it only changes once a day when the date rolls over.
+    today = date.today()
+    next_term = _next_term(today)
+    system_prompt = build_system_prompt(today, next_term)
+
+    try:
+        raw_reply = _generate_validated_reply(messages, system_prompt, earliest_term=next_term)
+    except (anthropic.APIConnectionError, anthropic.RateLimitError):
+        app.logger.exception("Anthropic API unavailable (connection/rate limit)")
+        return jsonify({"response": ADVISOR_UNAVAILABLE}), 503
+    except anthropic.APIStatusError:
+        app.logger.exception("Anthropic API returned an error status")
+        return jsonify({"response": ADVISOR_UNAVAILABLE}), 502
+    except anthropic.APIError:
+        app.logger.exception("Anthropic API error")
+        return jsonify({"response": ADVISOR_UNAVAILABLE}), 502
+
     assistant_message = _strip_roadmap_block(raw_reply)
 
     # Store the clean user message and the student-facing (block-stripped) reply.
