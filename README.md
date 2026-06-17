@@ -2,7 +2,7 @@
 
 An AI academic advisor for Cal Poly SLO Computer Science students. It plans courses,
 applies transfer and AP credit, tracks General Education progress, and recommends
-professors from live ratings data — all through a natural, multi-turn conversation.
+professors from live ratings data - all through a natural, multi-turn conversation.
 
 Built with **Python**, **Flask**, and the **Anthropic API** (Claude). It ships as both a
 web app and a terminal app sharing one retrieval and advising core.
