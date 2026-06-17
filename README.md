@@ -16,14 +16,14 @@ web app and a terminal app sharing one retrieval and advising core.
   against its minimum-passing tier, with **duplication** rules (no double credit for a
   course already taken) and **combination** rules (e.g. AP Calc AB supplies one course in
   the MATH sequence and combines with in-class courses rather than conflicting).
-- **GE crosswalk.** Converts old quarter GE areas to the 2026–28 semester areas using the
+- **GE crosswalk.** Converts old quarter GE areas to the 2026-28 semester areas using the
   official crosswalk, recognizes **discontinued** buckets as free electives (never flagged
   as unmet), and reports status in new semester area codes. Trusts a student's Degree
   Progress Report (DPR) statuses as authoritative when provided.
 - **Prerequisites and term offerings.** Checks prerequisite chains and only schedules a
   course in a term it is actually offered.
 - **Roadmap planning.** Builds a multi-semester plan toward graduation, respecting
-  prerequisites, term availability, and a target graduation date — never scheduling a term
+  prerequisites, term availability, and a target graduation date, never scheduling a term
   in the past.
 - **Professor recommendations.** Pulls live **PolyRatings** data and recommends instructors
   filtered by the student's stated course and preferences (e.g. recorded lectures,
@@ -37,7 +37,7 @@ per question.
 
 **RAG retrieval layer ([rag.py](rag.py)):**
 
-1. **Knowledge base.** At query time the system assembles a set of documents — degree
+1. **Knowledge base.** At query time the system assembles a set of documents: degree
    requirements, prerequisite chains, course mappings, GE areas, and one document per
    professor (built from live PolyRatings data, all departments).
 2. **Per-query relevance scoring.** Each document is scored lexically against the query:
@@ -48,22 +48,22 @@ per question.
    the message as a compact `[Retrieved advising context]` block, so the model answers from
    grounded data instead of the entire dataset.
 
-This is **lexical retrieval, not vector embeddings** — a deliberate scope choice. The
+This is **lexical retrieval, not vector embeddings**, a deliberate scope choice. The
 dataset is bounded and largely keyed by course codes and proper names, where exact lexical
 matching is precise, transparent, and dependency-free. Embeddings would add infrastructure
 and opacity without meaningfully improving recall on this corpus.
 
-**Conversation:** Both entry points keep multi-turn context — the Flask app per session,
-the terminal app per process — so follow-up questions work naturally.
+**Conversation:** Both entry points keep multi-turn context (the Flask app per session,
+the terminal app per process), so follow-up questions work naturally.
 
 ## Skills demonstrated
 
-- **Prompt engineering** — structured system prompts that encode advising rules and control behavior
-- **Structured outputs** — machine-usable structured data driving the advising logic
-- **Agent design** — multi-turn conversation with persistent context
-- **Retrieval-augmented generation** — per-query lexical retrieval that grounds responses
-- **REST API integration** — the Anthropic API for the conversational core
-- **External data integration** — live professor ratings from PolyRatings
+- **Prompt engineering:** structured system prompts that encode advising rules and control behavior
+- **Structured outputs:** machine-usable structured data driving the advising logic
+- **Agent design:** multi-turn conversation with persistent context
+- **Retrieval-augmented generation:** per-query lexical retrieval that grounds responses
+- **REST API integration:** the Anthropic API for the conversational core
+- **External data integration:** live professor ratings from PolyRatings
 
 ## How to run
 
@@ -81,18 +81,18 @@ the terminal app per process — so follow-up questions work naturally.
 
 ## Project structure
 
-- [app.py](app.py) — Flask web app (session-based conversation)
-- [advisor.py](advisor.py) — terminal chatbot
-- [rag.py](rag.py) — retrieval layer: PolyRatings fetch, document building, relevance scoring
-- [requirements.py](requirements.py) — advising knowledge base: degree requirements,
-  prerequisites, quarter→semester mappings, AP credit matrices, GE crosswalk, term offerings
-- [templates/index.html](templates/index.html) — chat UI with Markdown rendering (tables, lists)
+- [app.py](app.py): Flask web app (session-based conversation)
+- [advisor.py](advisor.py): terminal chatbot
+- [rag.py](rag.py): retrieval layer (PolyRatings fetch, document building, relevance scoring)
+- [requirements.py](requirements.py): advising knowledge base (degree requirements,
+  prerequisites, quarter→semester mappings, AP credit matrices, GE crosswalk, term offerings)
+- [templates/index.html](templates/index.html): chat UI with Markdown rendering (tables, lists)
 
 ## Limitations
 
 - Does **not** compute full 120-unit degree totals or unit-by-unit completion accounting;
   it tracks requirements and sub-areas, not running unit sums.
-- Covers the **general CS curriculum only** — no concentrations or specialized tracks.
+- Covers the **general CS curriculum only** (no concentrations or specialized tracks).
 - AP and GE results are only as accurate as the matrices and DPR statuses provided; the
   bundled AP matrices cover specific years, and other years should be verified with the
   registrar.
@@ -101,4 +101,4 @@ the terminal app per process — so follow-up questions work naturally.
 
 ## Built by
 
-Marc Helwee — Cal Poly SLO Computer Science
+Marc Helwee, Cal Poly SLO Computer Science
