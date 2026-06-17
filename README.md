@@ -39,7 +39,7 @@ web app and a terminal app sharing one retrieval and advising core.
 
 ## Architecture
 
-The advising knowledge lives in structured Python data ([requirements.py](requirements.py))
+The advising knowledge lives in structured Python data ([advising_data.py](advising_data.py))
 and a retrieval layer ([rag.py](rag.py)) that grounds the model on only the relevant facts
 per question.
 
@@ -141,7 +141,7 @@ Example exchange:
 - [advisor_core.py](advisor_core.py): shared advising core (canonical system prompt and the
   roadmap generate → validate → regenerate loop) imported by both interfaces
 - [rag.py](rag.py): retrieval layer (PolyRatings fetch, document building, relevance scoring)
-- [requirements.py](requirements.py): advising knowledge base (degree requirements,
+- [advising_data.py](advising_data.py): advising knowledge base (degree requirements,
   prerequisites, quarter→semester mappings, AP credit matrices, GE crosswalk, term offerings)
 - [roadmap_validator.py](roadmap_validator.py): pure roadmap validation (prerequisite order,
   term offerings, per-term CS-course cap, past terms, duplicates) used to verify generated plans

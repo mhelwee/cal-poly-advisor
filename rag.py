@@ -5,7 +5,7 @@ from typing import Any
 
 import requests
 
-from requirements import (
+from advising_data import (
     COURSE_ALIASES,
     COURSE_NAMES,
     CS_REQUIREMENTS,

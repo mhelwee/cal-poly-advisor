@@ -11,7 +11,7 @@ import json
 import re
 from datetime import date
 
-from requirements import (
+from advising_data import (
     CS_REQUIREMENTS, PREREQUISITE_CHAIN, COURSE_NAMES, TERM_OFFERED, AP_CREDIT,
     COURSE_ALIASES, SEQUENCE_REQUIREMENTS,
     GE_AREA_CROSSWALK, DISCONTINUED_GE_AREAS, COURSE_GE_AREA,

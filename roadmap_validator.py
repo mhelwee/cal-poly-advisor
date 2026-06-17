@@ -17,7 +17,7 @@ every elective is worse than no validator at all.
 
 import re
 
-from requirements import CS_REQUIREMENTS, PREREQUISITE_CHAIN, TERM_OFFERED
+from advising_data import CS_REQUIREMENTS, PREREQUISITE_CHAIN, TERM_OFFERED
 
 # Season string -> TERM_OFFERED code, and -> a month used purely for ordering
 # (Fall after Summer after Spring within a year), so Fall 2026 < Spring 2027.
