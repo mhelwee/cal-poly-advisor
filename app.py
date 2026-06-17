@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import date
 
 import requests
@@ -12,12 +13,12 @@ from requirements import (
     GE_AREA_CROSSWALK, DISCONTINUED_GE_AREAS, COURSE_GE_AREA,
 )
 from rag import add_rag_context_to_message, get_professors, retrieve_rag_context
+from roadmap_validator import validate_roadmap
 
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
-
+app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 def _next_term():
@@ -135,6 +136,97 @@ except (requests.RequestException, json.JSONDecodeError) as exc:
     all_professors = []
 system_prompt = build_system_prompt()
 
+# ---- Roadmap validation loop ----
+#
+# We don't trust the model's roadmap blindly. The model is asked (per-message, so
+# the shared system prompt in advisor.py/app.py stays untouched) to append a
+# machine-readable <roadmap-json> block whenever it produces a multi-term plan. We
+# parse that block, run validate_roadmap on it, and if it has violations we feed
+# them back and ask the model to fix the plan — capped at MAX_ROADMAP_RETRIES so a
+# stubborn model can't loop or run up cost. The block is stripped before display.
+
+ROADMAP_OPEN = "<roadmap-json>"
+ROADMAP_CLOSE = "</roadmap-json>"
+MAX_ROADMAP_RETRIES = 2
+
+ROADMAP_INSTRUCTION = (
+    "\n\n[System note] If your reply contains a concrete multi-term course plan (a "
+    "roadmap), append ONE machine-readable block at the very end, in EXACTLY this "
+    "form and nothing after it:\n"
+    f'{ROADMAP_OPEN}{{"terms": [{{"term": "Fall 2026", "courses": ["CSC 1001"]}}]}}{ROADMAP_CLOSE}\n'
+    "Use new semester course codes and \"<Season> <Year>\" term labels that match "
+    "the plan you described. If your reply is not a multi-term plan, do NOT include "
+    "the block."
+)
+
+
+def _extract_roadmap(text):
+    """Return the parsed roadmap dict from a <roadmap-json> block, or None."""
+    start = text.find(ROADMAP_OPEN)
+    end = text.find(ROADMAP_CLOSE)
+    if start == -1 or end == -1 or end < start:
+        return None
+    raw = text[start + len(ROADMAP_OPEN):end].strip()
+    raw = re.sub(r"^```(?:json)?", "", raw).strip()
+    raw = re.sub(r"```$", "", raw).strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(data, dict) and isinstance(data.get("terms"), list):
+        return data
+    return None
+
+
+def _strip_roadmap_block(text):
+    """Remove the machine-readable block so the student only sees prose."""
+    pattern = re.escape(ROADMAP_OPEN) + r".*?" + re.escape(ROADMAP_CLOSE)
+    cleaned = re.sub(pattern, "", text, flags=re.DOTALL)
+    return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+
+
+def _validation_feedback(violations):
+    return (
+        "The structured roadmap you provided failed automated validation. Fix every "
+        "issue below, keeping the student's stated constraints and respecting "
+        "prerequisite order, term offerings, and the earliest plannable term:\n"
+        + "\n".join(f"- {v}" for v in violations)
+        + "\n\nResend BOTH your conversational reply and a corrected "
+        f"{ROADMAP_OPEN}...{ROADMAP_CLOSE} block."
+    )
+
+
+def _generate_validated_reply(messages, earliest_term):
+    """Call the model and, if it emits a roadmap with violations, ask it to fix the
+    plan (up to MAX_ROADMAP_RETRIES). Return the final raw reply (block included)."""
+    response = client.messages.create(
+        model="claude-sonnet-4-6", max_tokens=4096,
+        system=system_prompt, messages=messages,
+    )
+    reply = response.content[0].text
+    convo = list(messages)
+
+    for _ in range(MAX_ROADMAP_RETRIES):
+        roadmap = _extract_roadmap(reply)
+        if roadmap is None:
+            break
+        violations = validate_roadmap(roadmap, cs_cap=None, earliest_term=earliest_term)
+        if not violations:
+            break
+        print(f"Roadmap violations, asking model to fix: {violations}")
+        convo = convo + [
+            {"role": "assistant", "content": reply},
+            {"role": "user", "content": _validation_feedback(violations)},
+        ]
+        response = client.messages.create(
+            model="claude-sonnet-4-6", max_tokens=4096,
+            system=system_prompt, messages=convo,
+        )
+        reply = response.content[0].text
+
+    return reply
+
+
 @app.route("/")
 def index():
     session["history"] = []
@@ -151,18 +243,14 @@ def chat():
     rag_result = retrieve_rag_context(user_message, professors=all_professors)
     print(f"RAG sources: {rag_result.sources}")
     message_with_context = add_rag_context_to_message(user_message, rag_result)
+    message_with_context += ROADMAP_INSTRUCTION
 
     messages = history + [{"role": "user", "content": message_with_context}]
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4096,
-        system=system_prompt,
-        messages=messages
-    )
+    raw_reply = _generate_validated_reply(messages, earliest_term=_next_term())
+    assistant_message = _strip_roadmap_block(raw_reply)
 
-    assistant_message = response.content[0].text
-
+    # Store the clean user message and the student-facing (block-stripped) reply.
     history.append({"role": "user", "content": user_message})
     history.append({"role": "assistant", "content": assistant_message})
 
