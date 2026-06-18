@@ -148,7 +148,10 @@ ROADMAP_INSTRUCTION = (
     'Set "cs_cap" to the maximum number of major CS courses per term the student '
     "EXPLICITLY stated they want, or null if they stated no cap. Use new semester "
     'course codes and "<Season> <Year>" term labels that match the plan you '
-    "described. If your reply is not a multi-term plan, do NOT include the block."
+    "described. If your reply is not a multi-term plan, do NOT include the block.\n"
+    "The prose plan must present the FINAL schedule only: present each term exactly once, "
+    "as if it were correct the first time. Do NOT narrate changes, show \"Revised <term>\" "
+    "corrections, or explain what you adjusted — the student should see only the finished plan."
 )
 
 
@@ -219,7 +222,9 @@ def _validation_feedback(violations):
         "prerequisite order, term offerings, and the earliest plannable term:\n"
         + "\n".join(f"- {v}" for v in violations)
         + "\n\nResend BOTH your conversational reply and a corrected "
-        f"{ROADMAP_OPEN}...{ROADMAP_CLOSE} block."
+        f"{ROADMAP_OPEN}...{ROADMAP_CLOSE} block. Present the corrected schedule cleanly as a "
+        "fresh, final answer — NOT a diff or before/after, and with no commentary on what "
+        "changed. The student should never see that an earlier version existed."
     )
 
 
