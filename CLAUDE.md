@@ -12,7 +12,7 @@ Stack: **Python + Flask + Anthropic API** (model `claude-sonnet-4-6`).
 
 ## Architecture
 
-- **`requirements.py`:** single source of truth for all advising data (plain Python
+- **`advising_data.py`:** single source of truth for all advising data (plain Python
   structures). Includes: `CS_REQUIREMENTS`, `PREREQUISITE_CHAIN`, `COURSE_NAMES`,
   `QUARTER_TO_SEMESTER` (legacy→semester course mapping, incl. combination & free-elective
   cases), `COURSE_ALIASES` + `SEQUENCE_REQUIREMENTS` (e.g. Calc 1/2/3 → MATH 141/142/143),
@@ -25,20 +25,30 @@ Stack: **Python + Flask + Anthropic API** (model `claude-sonnet-4-6`).
   and returns a compact context block injected into the prompt. Name-token matches are a
   dominant signal; there's a light department-context tiebreaker. **Lexical retrieval is a
   deliberate choice; do NOT introduce vector embeddings** (bounded, code/name-keyed dataset).
+- **`advisor_core.py`:** shared advising core — the SINGLE canonical copy of the system
+  prompt (`build_system_prompt`) and the roadmap generate→validate→regenerate loop
+  (`generate_validated_reply`). No Flask and no Anthropic client at import; the caller passes
+  its own `client`. Built from `advising_data.py`.
+- **`roadmap_validator.py`:** pure, dependency-free validation of a generated roadmap
+  (prerequisite order, term offerings, optional per-term CS cap, no past terms, no
+  duplicates); courses outside the bounded data are skipped, not flagged. Tested by
+  `test_roadmap_validator.py`; `advisor_core` helpers tested by `test_advisor_core.py`.
 - **`app.py`:** Flask web app (session-based history). **`advisor.py`:** terminal app.
-  Both build a large system prompt from `requirements.py` data and call the API.
+  Both import the prompt and validation loop from `advisor_core.py`; each owns only its own
+  I/O (RAG context assembly, session/CLI handling) and its own Anthropic `client`.
 - **`templates/index.html`:** chat UI; renders advisor Markdown via marked.js (user
   messages stay escaped).
-- **`professors.py`:** legacy keyword matcher, superseded by `rag.py`; not imported.
 
 ## Critical conventions
 
-- **The system prompt is DUPLICATED in `advisor.py` and `app.py`.** Any prompt change must
-  be applied to **both** files, kept in sync. (Same for the `get_professors` import, etc.)
+- **The system prompt and roadmap validation loop live ONCE in `advisor_core.py`**, imported
+  by both `app.py` and `advisor.py` — they are NOT duplicated. Change the prompt or the loop
+  in `advisor_core.py` and both interfaces pick it up; never copy this logic back into the
+  entry points.
 - **PolyRatings URL is `https://polyratings.dev`**, never `.com` (parked domain). Never
   fabricate professor-specific URLs; present retrieved ratings directly.
-- Advising data changes go in `requirements.py`, then are referenced from both prompts;
-  don't hardcode advising facts inline in the prompts.
+- Advising data changes go in `advising_data.py`, surfaced through the shared prompt in
+  `advisor_core.py`; don't hardcode advising facts inline in the prompt.
 - When a professor name returns no data, prompt the user to verify spelling; **never** add
   fuzzy/approximate name matching.
 
