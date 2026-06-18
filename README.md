@@ -1,6 +1,6 @@
 # Cal Poly AI Academic Advisor
 
-**Live demo:** <URL>  (replace after deploy)
+**Live demo:** https://cal-poly-advisor.onrender.com/
 
 An AI academic advisor for Cal Poly SLO Computer Science students. It plans courses,
 applies transfer and AP credit, tracks General Education progress, and recommends
