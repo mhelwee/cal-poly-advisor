@@ -1,6 +1,6 @@
 """Pure, deterministic validation for LLM-produced course roadmaps.
 
-No Flask, no network, no Anthropic — just data checks against requirements.py so
+No Flask, no network, no Anthropic — just data checks against advising_data.py so
 the app can stop trusting the model's roadmap blindly: emit it as structured
 data, validate here, and regenerate on failure.
 

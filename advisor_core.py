@@ -200,9 +200,16 @@ def _extract_roadmap(text):
 
 
 def _strip_roadmap_block(text):
-    """Remove the machine-readable block so the student only sees prose."""
+    """Remove the machine-readable block so the student only sees prose.
+
+    Normally both tags are present and the whole block is removed. If the model
+    truncated at max_tokens mid-block (opening tag but no closing tag), strip from
+    the opening tag to the end of the string so a dangling tag never leaks.
+    """
     pattern = re.escape(ROADMAP_OPEN) + r".*?" + re.escape(ROADMAP_CLOSE)
     cleaned = re.sub(pattern, "", text, flags=re.DOTALL)
+    if ROADMAP_OPEN in cleaned:  # opening tag with no closing tag (truncated block)
+        cleaned = cleaned[:cleaned.find(ROADMAP_OPEN)]
     return re.sub(r"\n{3,}", "\n\n", cleaned).strip()
 
 

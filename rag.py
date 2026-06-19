@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -22,16 +23,30 @@ for _entry in QUARTER_TO_SEMESTER:
         _OLD_TO_NEW.setdefault(_old, set()).update(_entry["new"])
 
 
-def get_professors():
+def get_professors(retries=3, delay=1.0):
     """Fetch ALL professors from PolyRatings.
 
     No department filter — retrieval narrows by relevance, so professors in any
     department (WGQS, MATH, etc.) are available for last-name and course lookups.
+
+    Retries a few times with a short delay so a momentary outage at startup doesn't
+    leave the process with zero professor data. Re-raises the last error if every
+    attempt fails, so callers can still fall back to an empty list. Return shape is
+    unchanged (the parsed JSON list).
     """
     url = "https://raw.githubusercontent.com/Polyratings/polyratings-data/refs/heads/data/professor-list.json"
-    response = requests.get(url, timeout=10)
-    response.raise_for_status()
-    return json.loads(response.text)
+    last_exc = None
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            return json.loads(response.text)
+        except (requests.RequestException, json.JSONDecodeError) as exc:
+            last_exc = exc
+            if attempt < retries:
+                print(f"PolyRatings fetch attempt {attempt} failed ({exc}); retrying...")
+                time.sleep(delay)
+    raise last_exc
 
 
 # 2026-28 semester GE sub-areas. A student is "done" with GE when every sub-area is
