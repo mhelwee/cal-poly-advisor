@@ -87,7 +87,7 @@ the terminal app per process), so follow-up questions work naturally.
 
 - **Prompt engineering:** structured system prompts that encode advising rules and control behavior
 - **Structured outputs:** the model emits roadmaps as structured JSON that drives a code-based validation step, not just free text
-- **Output verification / guardrails:** correctness-critical LLM output is constrained to a schema and checked in code (the roadmap validator), with invalid plans regenerated rather than shown
+- **Output verification / guardrails:** correctness-critical LLM output is constrained to a schema and checked in code (the roadmap validator), with invalid plans regenerated rather than shown; rendered model output is HTML-sanitized (DOMPurify) so injected markup can't execute
 - **Agent design:** multi-turn conversation with persistent context, plus a generate → validate → regenerate loop for roadmaps
 - **API economics:** the large, static advising knowledge base is sent with a prompt-cache marker so it is cached across turns — a deliberate choice that cuts per-message cost and latency
 - **Retrieval-augmented generation:** per-query lexical retrieval that grounds responses
@@ -110,11 +110,14 @@ the terminal app per process), so follow-up questions work naturally.
 
 ## Deployment
 
-The web app runs under **gunicorn** via the included `Procfile` (`web: gunicorn app:app`) and
-needs `ANTHROPIC_API_KEY` and `SECRET_KEY` set in the host environment. Sessions are stored
-**server-side (filesystem)**, so long multi-turn histories aren't lost to the ~4KB browser
-cookie limit, and transient Anthropic API errors degrade gracefully — the student is asked to
-resend rather than hitting a failed page.
+The web app runs under **gunicorn** via the included `Procfile`
+(`web: gunicorn app:app --timeout 120 --workers 2` — the higher timeout covers the roadmap
+validate/regenerate loop's multiple model calls) and needs `ANTHROPIC_API_KEY` and `SECRET_KEY`
+set in the host environment. Sessions are stored **server-side (filesystem)**, so long
+multi-turn histories aren't lost to the ~4KB browser cookie limit; transient Anthropic API
+errors degrade gracefully — the student is asked to resend rather than hitting a failed page —
+and the startup PolyRatings fetch retries briefly so a momentary outage at boot doesn't leave
+the app without professor data.
 
 ## How to use
 
@@ -145,8 +148,11 @@ Example exchange:
   prerequisites, quarter→semester mappings, AP credit matrices, GE crosswalk, term offerings)
 - [roadmap_validator.py](roadmap_validator.py): pure roadmap validation (prerequisite order,
   term offerings, per-term CS-course cap, past terms, duplicates) used to verify generated plans
-- [test_roadmap_validator.py](test_roadmap_validator.py): unit tests for the roadmap validator
-- [templates/index.html](templates/index.html): chat UI with Markdown rendering (tables, lists)
+- [test_roadmap_validator.py](test_roadmap_validator.py), [test_advisor_core.py](test_advisor_core.py),
+  [test_rag.py](test_rag.py): unit tests (roadmap validator; advisor-core helpers and the
+  validation loop via a fake client; RAG retrieval)
+- [templates/index.html](templates/index.html): chat UI; renders advisor Markdown (tables,
+  lists) sanitized with DOMPurify so model output can't inject executable HTML
 - [requirements.txt](requirements.txt): Python dependencies
 - [Procfile](Procfile): process definition for gunicorn-based deployment
 
